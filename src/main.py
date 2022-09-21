@@ -8,7 +8,7 @@ from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from admin import setup_admin
-from models import db, User, Characters, Planets, Favourites 
+from models import db, User, Characters, Planets, CharactersFavourites, PlanetsFavourites
 import json
 #from models import Person
 
@@ -60,7 +60,7 @@ def handle_planets():
     return jsonify(data), 200
 
 
-#id planetas
+#single  planetas
 @app.route('/planets/<int:planet_id>', methods=['GET'])
 def handle_singleplanets(id):
     planets_id = Planets.query.all(id)
@@ -75,48 +75,69 @@ def handle_users():
     data = [user.serialize() for user in users]
 
     return jsonify(data), 200
-    
-
-#favoritos usuarios
-@app.route('/favourites', methods=['GET'])
-def handle_favourites():
-    favourites = Favourites.query.all()
-    data = [favourites.serialize() for favourite in favourites]
-
-    return jsonify(data), 200
 
 
-@app.route('/favourites/<int:id>', methods=['GET'])
-def handle_signlefavourites(id):
-    favourites = Favourites.query.all(id)
-    
-    return jsonify(favourites.serialize()), 200
-
-
-#añadir character y planet favoritos
-@app.route('/user/<int:id>', methods=['POST'])
-def add_favourites(id):
+#todos los favoritos del usuario planets
+@app.route('/user/favorites', methods=['GET'])
+def favourites_user():
     data = request.json
-    favourites = Favourites(user_id=data.get('user_id'), character_id=data.get('characters_id'), planets_id=('planets_id'))
-    db.session.add(favourites)
-    db.session.commit()
-    
-    return jsonify({"message": "everything went ok :)"}), 200
+    print(data)
+    favorites_planets = PlanetsFavourites.query.filter_by(user_id = data["user_id"])
+    favorites_characters = CharactersFavourites.query.filter_by(user_id = data["user_id"])
+
+    data_planets = [favorite.planets_fav.serialize() for favorite in favorites_planets]
+    data_characters = [favorite.characters_fav.serialize() for favorite in favorites_characters]
+
+    return jsonify({"planets":data_planets, "characters":data_characters}), 200
 
 
-#eliminar favoritos
-@app.route('/user/<int:id>', methods=['DELETE'])
-def delete_favourites(id):
+
+# Add a new favorite planet
+@app.route('/user/<int:planet_id>', methods=['POST'])
+def add_favorite_planet(planet_id):
     data = request.json
-    favourites = Favourites(character_id=data.get('characters_id'), planets_id=('planets_id'))
-    db.session.delete(favourites)
+    favorite = PlanetsFavourites(user_id = data["user_id"], planets_id=planet_id)
+    db.session.add(favorite)
     db.session.commit()
 
-    return jsonify({"message": "favourite removed"}), 200
+    return jsonify("planeta favorito"), 200
 
-    
+
+
+# Add a new favorite character
+@app.route('/user/<int:character_id>', methods=['POST'])
+def add_favorite_character(character_id):
+    data = request.json
+    favorite = PlanetsFavourites(user_id = data["user_id"], characters_id=character_id)
+    db.session.add(favorite)
+    db.session.commit()
+
+    return jsonify("personaje favorito"), 200
+
+
+# delete favorite planet
+@app.route('/favorite/planet/<int:planet_id>', methods=['DELETE'])
+def delete_planet(planet_id):
+    data = request.json
+    favorite = PlanetsFavourites.query.filter_by(user_id=data["user_id"], planets_id=planet_id).first()
+    db.session.delete(favorite)
+    db.session.commit()
+
+    return jsonify("borrado"), 200
+
+
+# #delete favorite character
+@app.route('/favorite/character/<int:character_id>', methods=['DELETE'])
+def delete_character(character_id):
+    data = request.json
+    favorite = CharactersFavourites.query.filter_by(user_id=data["user_id"], characters_id=character_id).first()
+    db.session.delete(favorite)
+    db.session.commit()
+
+    return jsonify("borrado"), 200
+
 
 # this only runs if `$ python src/main.py` is executed
-if __name__ == '__main__':
+if  __name__ == '__main__':
     PORT = int(os.environ.get('PORT', 3000))
     app.run(host='0.0.0.0', port=PORT, debug=False)
